@@ -20,6 +20,28 @@ class NPConfBaseException(Exception):
 class NewAttributesNotAllowed(NPConfBaseException):
     ""
 
+class ItemAttrDict(dict):
+
+    def __init__(self, *args, **kwargs):
+        super(ItemAttrDict, self).__init__(*args, **kwargs)
+        self.__dict__ = self
+
+class ConfigItem(object):
+
+    def __new__(cls, name, value, metadata={}):
+        if isinstance(value, ConfigItem):
+            instance = value
+        else:
+            instance = super(ConfigItem, cls).__new__(cls, name, value, metadata)
+        return instance
+
+    def __init__(self, name, value, metadata={}):
+        if isinstance(value, ConfigItem):
+            return
+        self.name = name
+        self.value = value
+        self.metadata = ItemAttrDict(metadata)
+
 
 class ConfigSpace(dict):
 
@@ -30,10 +52,16 @@ class ConfigSpace(dict):
         self._owner_ = owner
 
     def __getattribute__(self, name):
+        if name.endswith('_METADATA'):
+            name = name.replace('_METADATA', '')
+            foo = lambda v: v
+        else:
+            foo = lambda v: v.value
         value = object.__getattribute__(self, name)
-        if name != '_owner_' and isinstance(value, ConfigValue):
-            return value.store
-        return value
+        value = ConfigItem(name=name, value=value)
+        if name != '_owner_' and isinstance(foo(value), ConfigValue):
+            return foo(value).store
+        return foo(value)
 
     def check_strict(self, name):
         native_attrs = [
@@ -132,4 +160,6 @@ class ConfigValue(object):
             env = {self.name: self.config}
             env.update(globals())
             with self.store.with_strict(strict):
+                _MODULE_SOURCE_CODE = file
+                env['_MODULE_SOURCE_CODE'] = file
                 exec(file, env)
