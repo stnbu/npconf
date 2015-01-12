@@ -52,36 +52,42 @@ class ConfigSpace(dict):
         self._owner_ = owner
 
     def __getattribute__(self, name):
+        native_attrs = dict.__getattribute__(self, 'native_attrs')
+        if name in native_attrs:
+            return dict.__getattribute__(self, name)
         if name.endswith('_METADATA'):
             name = name.replace('_METADATA', '')
             foo = lambda v: v
         else:
             foo = lambda v: v.value
-        value = object.__getattribute__(self, name)
-        value = ConfigItem(name=name, value=value)
-        if name != '_owner_' and isinstance(foo(value), ConfigValue):
+        value = dict.__getattribute__(self, name)
+        if not isinstance(value, ConfigItem):
+            value = ConfigItem(name=name, value=value)
+        if isinstance(foo(value), ConfigValue):
             return foo(value).store
         return foo(value)
 
-    def check_strict(self, name):
-        native_attrs = [
-            '__dict__',
-            '_owner_',
-            '_orig_strict_',
-            '_with_strict_',
-        ]
-        if name in native_attrs:
+    native_attrs = [
+        '__dict__',
+        '_owner_',
+        '_orig_strict_',
+        '_with_strict_',
+    ]
+
+
+    def _set(self, name, value, setter):
+        if name in self.native_attrs:
+            setter(self, name, value)
             return
         if self._owner_.strict and name not in self:
             raise NewAttributesNotAllowed('{0}: Creation of new attributes not permitted.'.format(repr(name)))
+        setter(self, name, value)
 
     def __setitem__(self, name, value):
-        self.check_strict(name)
-        dict.__setitem__(self, name, value)
+        self._set(name, value, dict.__setitem__)
 
     def __setattr__(self, name, value):
-        self.check_strict(name)
-        dict.__setattr__(self, name, value)
+        self._set(name, value, dict.__setattr__)
 
     def with_strict(self, strict):
         self._orig_strict_ = self._owner_.strict
