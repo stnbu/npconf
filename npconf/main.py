@@ -26,23 +26,6 @@ class ItemAttrDict(dict):
         super(ItemAttrDict, self).__init__(*args, **kwargs)
         self.__dict__ = self
 
-class ConfigItem(object):
-
-    def __new__(cls, name, value, metadata={}):
-        if isinstance(value, ConfigItem):
-            instance = value
-        else:
-            instance = super(ConfigItem, cls).__new__(cls, name, value, metadata)
-        return instance
-
-    def __init__(self, name, value, metadata={}):
-        if isinstance(value, ConfigItem):
-            return
-        self.name = name
-        self.value = value
-        self.metadata = ItemAttrDict(metadata)
-
-
 class ConfigSpace(dict):
 
     def __init__(self, owner):
@@ -55,17 +38,10 @@ class ConfigSpace(dict):
         native_attrs = dict.__getattribute__(self, 'native_attrs')
         if name in native_attrs:
             return dict.__getattribute__(self, name)
-        if name.endswith('_METADATA'):
-            name = name.replace('_METADATA', '')
-            foo = lambda v: v
-        else:
-            foo = lambda v: v.value
         value = dict.__getattribute__(self, name)
-        if not isinstance(value, ConfigItem):
-            value = ConfigItem(name=name, value=value)
-        if isinstance(foo(value), ConfigValue):
-            return foo(value).store
-        return foo(value)
+        if isinstance(value, ConfigValue):
+            return value.store
+        return value
 
     native_attrs = [
         '__dict__',
@@ -73,7 +49,6 @@ class ConfigSpace(dict):
         '_orig_strict_',
         '_with_strict_',
     ]
-
 
     def _set(self, name, value, setter):
         if name in self.native_attrs:
@@ -161,6 +136,10 @@ class ConfigValue(object):
             paths = [paths]
         paths = [get_config_file(p) for p in paths]
         for file in paths:
+            if isinstance(file, basestring):
+                file = str(file)
+                if not os.path.exists(file):
+                    continue  # TODO: log, etc.
             if strict is None:
                 strict = self.strict
             env = {self.name: self.config}
