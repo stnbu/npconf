@@ -8,13 +8,14 @@ be:
     myapp.subcomponent.value = 1
     myapp.enabled = True
 
-The user needn't define "myapp". It's automatically included in ``globasl()``.
+The user needn't define "myapp". It's automatically included in ``globals()``.
 
 The administrator/developer can disallow user-defined attributes. This is mostly intended to prevent typos in the
 configuration files. In other words, if ``myapp.foo`` is not defined before reading the configuration files, no file
 will be allowed to set ``myapp.foo``.
 
-The configuration attributes are normally declared by a program before it reads any configuration files. They can be declared at init time:
+The configuration attributes are normally declared by a program before it reads any configuration files. They can be
+declared at init time:
 
 .. code-block:: python
 
